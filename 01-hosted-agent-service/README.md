@@ -1,6 +1,6 @@
 # Pattern 1 — Azure Hosted Agent Service
 
-![Architecture](../../docs/diagrams/01-HostedAgentService.png)
+![Architecture](../docs/images/01-HostedAgentService.png)
 
 ## Overview
 
