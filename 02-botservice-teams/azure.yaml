@@ -1,0 +1,12 @@
+name: agent-pattern-02
+metadata:
+  template: agent-pattern-02-botservice-teams
+services:
+  teams-bot:
+    project: src/TeamsBot
+    host: appservice
+    language: csharp
+  enterprise-api:
+    project: ../shared/enterprise-api
+    host: appservice
+    language: csharp

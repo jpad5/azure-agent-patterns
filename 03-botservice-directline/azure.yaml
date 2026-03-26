@@ -1,0 +1,16 @@
+name: agent-pattern-03
+metadata:
+  template: agent-pattern-03-botservice-directline
+services:
+  directline-bot:
+    project: src/DirectLineBot
+    host: appservice
+    language: csharp
+  web-client:
+    project: src/WebClient
+    host: appservice
+    language: js
+  enterprise-api:
+    project: ../shared/enterprise-api
+    host: appservice
+    language: csharp

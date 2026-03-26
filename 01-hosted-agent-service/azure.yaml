@@ -1,0 +1,16 @@
+name: agent-pattern-01
+metadata:
+  template: agent-pattern-01-hosted-agent-service
+services:
+  frontend:
+    project: src/FrontendApp
+    host: appservice
+    language: csharp
+  agent-service:
+    project: src/AgentService
+    host: appservice
+    language: csharp
+  enterprise-api:
+    project: ../shared/enterprise-api
+    host: appservice
+    language: csharp

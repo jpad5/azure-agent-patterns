@@ -1,0 +1,68 @@
+@page
+@model FrontendApp.Pages.IndexModel
+@{
+    ViewData["Title"] = "Agent Chat";
+}
+
+<h1>Agent Chat</h1>
+<p>Welcome, <strong>@Model.UserName</strong></p>
+
+<div id="chat-container" style="max-width: 600px;">
+    <div id="response-area"
+         style="border: 1px solid #ccc; border-radius: 4px; padding: 12px;
+                min-height: 120px; margin-bottom: 12px; white-space: pre-wrap;
+                background: #f9f9f9; font-family: monospace;">
+        <em>Agent responses will appear here.</em>
+    </div>
+
+    <form id="chat-form" style="display: flex; gap: 8px;">
+        <input type="text" id="prompt-input" placeholder="Ask the agent..."
+               style="flex: 1; padding: 8px;" required />
+        <button type="submit" id="send-btn" style="padding: 8px 16px;">Send</button>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+    const agentServiceUrl = '@Model.AgentServiceBaseUrl';
+    const accessToken = '@Model.AccessToken';
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('prompt-input');
+    const responseArea = document.getElementById('response-area');
+    const sendBtn = document.getElementById('send-btn');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const prompt = input.value.trim();
+        if (!prompt) return;
+
+        sendBtn.disabled = true;
+        responseArea.textContent = 'Sending...';
+
+        try {
+            const res = await fetch(`${agentServiceUrl}/api/agent/invoke`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify({ prompt })
+            });
+
+            if (!res.ok) {
+                responseArea.textContent = `Error: ${res.status} ${res.statusText}`;
+                return;
+            }
+
+            const data = await res.json();
+            responseArea.textContent =
+                `Agent: ${data.agentResponse}\n\nEnterprise API: ${JSON.stringify(data.enterpriseData, null, 2)}`;
+        } catch (err) {
+            responseArea.textContent = `Error: ${err.message}`;
+        } finally {
+            sendBtn.disabled = false;
+            input.value = '';
+        }
+    });
+</script>
+}

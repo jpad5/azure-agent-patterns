@@ -1,0 +1,48 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "<BOT_APP_ID>",
+  "developer": {
+    "name": "Contoso",
+    "websiteUrl": "https://example.com",
+    "privacyUrl": "https://example.com/privacy",
+    "termsOfUseUrl": "https://example.com/terms"
+  },
+  "name": {
+    "short": "Agent Bot - Teams Pattern",
+    "full": "Pattern 2 — Azure Bot Service (Teams Channel)"
+  },
+  "description": {
+    "short": "Bot Framework v4 bot with OAuth and OBO to Enterprise API",
+    "full": "Demonstrates Bot Framework v4 deployed to Teams with OAuth Prompt sign-in, simulated Copilot Studio orchestration, and On-Behalf-Of token exchange to call an Enterprise API."
+  },
+  "icons": {
+    "outline": "outline.png",
+    "color": "color.png"
+  },
+  "accentColor": "#4F6BED",
+  "bots": [
+    {
+      "botId": "<BOT_APP_ID>",
+      "scopes": [ "personal", "team" ],
+      "supportsFiles": false,
+      "isNotificationOnly": false,
+      "commandLists": [
+        {
+          "scopes": [ "personal" ],
+          "commands": [
+            {
+              "title": "help",
+              "description": "Show help information"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "permissions": [ "identity", "messageTeamMembers" ],
+  "validDomains": [
+    "token.botframework.com"
+  ]
+}

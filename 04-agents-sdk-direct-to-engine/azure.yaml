@@ -1,0 +1,12 @@
+name: agent-pattern-04
+metadata:
+  template: agent-pattern-04-agents-sdk-dte
+services:
+  action-endpoint:
+    project: src/ActionEndpoint
+    host: appservice
+    language: csharp
+  enterprise-api:
+    project: ../shared/enterprise-api
+    host: appservice
+    language: csharp

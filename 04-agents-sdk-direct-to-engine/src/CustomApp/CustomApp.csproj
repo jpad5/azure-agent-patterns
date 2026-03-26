@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Microsoft.Agents.CopilotStudio.Client is the M365 Agents SDK package for direct-to-engine
+      connectivity to Copilot Studio. The package may still be in preview; update the version
+      to the latest available on NuGet. The npm equivalent is @microsoft/agents-copilotstudio-client.
+    -->
+    <PackageReference Include="Microsoft.Agents.CopilotStudio.Client" Version="1.0.0-preview.*" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

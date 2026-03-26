@@ -1,0 +1,162 @@
+/* =============================================================================
+   Pattern 3 — Direct Line Web Chat — Styles
+   ============================================================================= */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    height: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f3f2f1;
+    color: #323130;
+}
+
+/* ---- App Shell ---- */
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    max-width: 800px;
+    height: 100vh;
+    margin: 0 auto;
+    background: #ffffff;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* ---- Header ---- */
+
+.app-header {
+    background: linear-gradient(135deg, #0078d4, #005a9e);
+    color: #ffffff;
+    padding: 20px 24px;
+    text-align: center;
+}
+
+.app-header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.app-header p {
+    font-size: 0.85rem;
+    opacity: 0.85;
+}
+
+/* ---- Auth Controls ---- */
+
+.auth-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: #faf9f8;
+    border-bottom: 1px solid #edebe9;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.toggle-group {
+    display: flex;
+    align-items: center;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #0078d4;
+}
+
+.auth-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* ---- Buttons ---- */
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.btn-primary {
+    background: #0078d4;
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background: #106ebe;
+}
+
+.user-display {
+    font-size: 0.8rem;
+    color: #605e5c;
+}
+
+/* ---- Web Chat Container ---- */
+
+.webchat-container {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+.loading-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.95rem;
+    color: #605e5c;
+}
+
+.loading-message.error {
+    color: #d13438;
+}
+
+/* ---- Footer ---- */
+
+.app-footer {
+    padding: 10px 24px;
+    text-align: center;
+    font-size: 0.75rem;
+    color: #a19f9d;
+    background: #faf9f8;
+    border-top: 1px solid #edebe9;
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 600px) {
+    .app-container {
+        max-width: 100%;
+        border-radius: 0;
+    }
+
+    .auth-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

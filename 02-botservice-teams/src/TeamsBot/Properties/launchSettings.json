@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "TeamsBot": {
+      "commandName": "Project",
+      "applicationUrl": "http://localhost:5030",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

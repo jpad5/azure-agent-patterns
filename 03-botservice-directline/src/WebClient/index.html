@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pattern 3 — Direct Line Web Chat</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- MSAL.js 2.x for user authentication -->
+    <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+    <!-- Bot Framework Web Chat -->
+    <script src="https://cdn.botframework.com/botframework-webchat/latest/webchat.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>🤖 Agent Bot — Direct Line</h1>
+            <p>Pattern 3: Azure Bot Service (Direct Line / Custom Website)</p>
+        </header>
+
+        <div class="auth-controls">
+            <div class="toggle-group">
+                <label class="toggle-label" for="backchannel-toggle">
+                    <input type="checkbox" id="backchannel-toggle" />
+                    <span class="toggle-text">Send token via backchannel (Option A)</span>
+                </label>
+            </div>
+            <div class="auth-actions">
+                <button id="signin-btn" class="btn btn-primary">Sign In with Microsoft</button>
+                <span id="user-display" class="user-display"></span>
+            </div>
+        </div>
+
+        <div id="webchat" class="webchat-container">
+            <div class="loading-message">Connecting to bot…</div>
+        </div>
+
+        <footer class="app-footer">
+            <p>Auth: Backchannel (Option A) or OAuth Prompt fallback (Option B)</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
