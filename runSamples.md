@@ -148,10 +148,10 @@ az ad app permission admin-consent --id $agentAppId
 az ad app permission admin-consent --id $frontendAppId
 ```
 
-### 1j. Add Power Platform API Permission (for Copilot Studio Direct-to-Engine)
+### 1j. Add Power Platform API Permission (for Copilot Studio Conversations API)
 
 The Agent Service needs the `CopilotStudio.Copilots.Invoke` delegated permission
-on the Power Platform API to call Copilot Studio agents via the Direct-to-Engine API.
+on the Power Platform API to call Copilot Studio agents via the conversations API.
 
 ```powershell
 # Power Platform API app ID (well-known)
@@ -219,9 +219,9 @@ az ad app permission admin-consent --id $agentAppId
 }
 ```
 
-> **CopilotStudio:TokenEndpoint** Ã¢â‚¬â€ this is the Direct-to-Engine conversations URL
-> for your Copilot Studio agent. Get it from Copilot Studio Ã¢â€ â€™ your agent Ã¢â€ â€™
-> Settings Ã¢â€ â€™ Advanced Ã¢â€ â€™ Direct-to-Engine endpoint. The URL looks like:
+> **CopilotStudio:TokenEndpoint** Ã¢â‚¬â€ this is the Copilot Studio conversations URL
+> for your agent. Get it from Copilot Studio Ã¢â€ â€™ your agent Ã¢â€ â€™
+> Settings Ã¢â€ â€™ Advanced Ã¢â€ â€™ Copilot Studio API endpoint. The URL looks like:
 > `https://<env>.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/<bot_schema_name>/conversations?api-version=2022-03-01-preview`
 
 ### 01-hosted-agent-service/src/FrontendApp/appsettings.json
@@ -310,7 +310,7 @@ Start-Process "http://localhost:5010"
 
 Navigate to `http://localhost:5010`. Sign in with your Entra ID account, then submit a prompt. The request flows through:
 
-**Frontend SSO Ã¢â€ â€™ Agent Service (JWT validation) Ã¢â€ â€™ Copilot Studio (Direct-to-Engine) Ã¢â€ â€™ OBO Ã¢â€ â€™ Enterprise API**
+**Frontend SSO Ã¢â€ â€™ Agent Service (JWT validation) Ã¢â€ â€™ Copilot Studio (conversations API) Ã¢â€ â€™ OBO Ã¢â€ â€™ Enterprise API**
 
 ---
 
@@ -319,7 +319,7 @@ Navigate to `http://localhost:5010`. Sign in with your Entra ID account, then su
 | App | Client ID | Purpose |
 |-----|-----------|---------|
 | AgentPatterns-EnterpriseAPI | `<ENTERPRISE_API_CLIENT_ID>` | Downstream API (validates OBO tokens) |
-| AgentPatterns-AgentService | `<AGENT_SERVICE_CLIENT_ID>` | Agent orchestrator (JWT validation, Copilot Studio Direct-to-Engine, OBO exchange) |
+| AgentPatterns-AgentService | `<AGENT_SERVICE_CLIENT_ID>` | Agent orchestrator (JWT validation, Copilot Studio conversations API, OBO exchange) |
 | AgentPatterns-FrontendApp | `<FRONTEND_CLIENT_ID>` | Razor Pages frontend (OIDC sign-in) |
 
 | Service | Port |
@@ -390,9 +390,9 @@ az ad app permission admin-consent --id <APP_CLIENT_ID>
 
 ### Error: 400 Bad Request when sending a message to Copilot Studio
 
-**Cause:** The Direct-to-Engine execute turn endpoint expects the user message wrapped
-in an `activity` property. Sending a raw Bot Framework Activity object (e.g.,
-`{ "type": "message", "text": "..." }`) at the top level is rejected with 400.
+**Cause:** The Copilot Studio conversations API execute turn endpoint expects the user
+message wrapped in an `activity` property. Sending a raw Bot Framework Activity object
+(e.g., `{ "type": "message", "text": "..." }`) at the top level is rejected with 400.
 
 **Fix:** Wrap the message inside an `activity` object:
 
@@ -420,8 +420,8 @@ await httpClient.PostAsJsonAsync(turnUrl, turnPayload);
 
 ### Error: 404 Not Found when posting to `/conversations/{id}/activities`
 
-**Cause:** The Direct-to-Engine API does not have an `/activities` sub-path. Unlike
-the Bot Framework Direct Line API, the execute turn endpoint is the conversation
+**Cause:** The Copilot Studio conversations API does not have an `/activities` sub-path.
+Unlike the Bot Framework Direct Line API, the execute turn endpoint is the conversation
 URL itself.
 
 **Fix:** Post to `/conversations/{conversationId}` (not `/conversations/{id}/activities`):

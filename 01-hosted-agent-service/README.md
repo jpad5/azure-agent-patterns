@@ -8,7 +8,7 @@ This pattern demonstrates an **Azure-hosted agent service** where a frontend web
 application authenticates the user via Entra ID SSO, then delegates prompt
 processing to a backend Agent Service. The Agent Service validates the user's JWT,
 orchestrates a call to a **real Microsoft Copilot Studio agent** via the
-**Direct-to-Engine API** (authenticated), and performs an **On-Behalf-Of (OBO)**
+**Copilot Studio conversations API** (authenticated), and performs an **On-Behalf-Of (OBO)**
 token exchange to call a shared Enterprise API as the signed-in user.
 
 ## Components
@@ -16,7 +16,7 @@ token exchange to call a shared Enterprise API as the signed-in user.
 | Component | Port | Description |
 |---|---|---|
 | **FrontendApp** | `5010` | Razor Pages app with MSAL / OpenID Connect SSO |
-| **AgentService** | `5020` | ASP.NET Core API — JWT validation, Copilot Studio Direct-to-Engine API, OBO |
+| **AgentService** | `5020` | ASP.NET Core API — JWT validation, Copilot Studio conversations API, OBO |
 | **Enterprise API** | `5050` | Shared downstream API (see `shared/enterprise-api`) |
 
 ## Auth Flow
@@ -26,7 +26,7 @@ User → FrontendApp (OIDC sign-in) → acquires token for AgentService scope
      → POST /api/agent/invoke (Bearer token)
      → AgentService validates JWT
      → OBO exchange: user token → Power Platform API token (CopilotStudio.Copilots.Invoke)
-     → Direct-to-Engine API:
+     → Copilot Studio conversations API:
          1. POST /conversations (empty body) → start conversation, get conversationId
          2. Check for bot greeting in start response activities
          3. POST /conversations/{id} with { activity: { type, text } } → execute turn
@@ -46,8 +46,9 @@ User → FrontendApp (OIDC sign-in) → acquires token for AgentService scope
      Power Platform API (`CopilotStudio.Copilots.Invoke`)
    - **Enterprise API** — expose an API scope `access_as_user`; grant the Agent
      Service permission to call it via OBO
-3. **A published Copilot Studio agent** with authenticated access enabled
-   (Direct-to-Engine API). You'll need the agent's conversations endpoint URL.
+3. **A published Copilot Studio agent** with authenticated access enabled.
+   You'll need the agent's conversations endpoint URL (available in Copilot Studio
+   under Settings → Advanced → Copilot Studio API endpoint).
 
 ## App Registration Setup (Brief)
 
@@ -123,11 +124,14 @@ dotnet run
 # Navigate to http://localhost:5010
 ```
 
-## Direct-to-Engine API Details
+## Copilot Studio Conversations API Details
 
 The Agent Service communicates with Copilot Studio using the
-[Direct-to-Engine API](https://learn.microsoft.com/microsoft-copilot-studio/configure-bot-direct-to-engine-overview)
-(authenticated mode).
+[Copilot Studio conversations API](https://learn.microsoft.com/microsoft-copilot-studio/publication-integrate-web-or-native-app-m365-agents-sdk)
+(authenticated mode). This is the same REST endpoint that the
+[Microsoft 365 Agents SDK](https://github.com/microsoft/Agents) Copilot Studio
+client wraps internally. This sample calls the REST endpoint directly to
+demonstrate the underlying protocol.
 
 1. **Start conversation** — `POST` to the conversations URL with an empty JSON body (`{}`).
    Returns a `conversationId` and optionally an `activities` array with a bot greeting.
@@ -153,7 +157,7 @@ The Agent Service communicates with Copilot Studio using the
 - **Frontend SSO** — user signs in via Entra ID; token acquired for Agent Service.
 - **JWT validation** — Agent Service validates the token using Microsoft.Identity.Web.
 - **Copilot Studio integration** — real call to a Copilot Studio agent via the
-  Direct-to-Engine API using an OBO token for the Power Platform API
+  Copilot Studio conversations API using an OBO token for the Power Platform API
   (`CopilotStudio.Copilots.Invoke` scope).
 - **OBO token exchange** — Agent Service exchanges the user token for downstream
   tokens scoped to both the Power Platform API and the Enterprise API.

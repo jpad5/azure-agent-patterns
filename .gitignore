@@ -35,3 +35,7 @@ dist/
 .env
 *.pfx
 *.pem
+
+# Pattern 1 — appsettings contain real secrets locally
+01-hosted-agent-service/**/appsettings.json
+shared/enterprise-api/appsettings.json

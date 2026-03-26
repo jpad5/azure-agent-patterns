@@ -48,7 +48,7 @@ app.MapPost("/api/agent/invoke", async (
     var userName = httpContext.User.Identity?.Name ?? "unknown user";
     logger.LogInformation("Agent invoked by {User} with prompt: {Prompt}", userName, request.Prompt);
 
-    // --- Step 2: Call Copilot Studio agent via Direct-to-Engine API ---
+    // --- Step 2: Call Copilot Studio agent via conversations API ---
     var conversationsUrl = configuration["CopilotStudio:TokenEndpoint"]!;
     string agentResponse;
     try
@@ -81,7 +81,7 @@ app.MapPost("/api/agent/invoke", async (
         }
         else
         {
-            // 2c. Send user message — Direct-to-Engine API: POST to /conversations/{id}
+            // 2c. Send user message — Copilot Studio: POST to /conversations/{id}
             var uriBuilder = new UriBuilder(conversationsUrl);
             uriBuilder.Path = uriBuilder.Path + "/" + conversationId;
             var turnUrl = uriBuilder.Uri.ToString();
@@ -154,7 +154,7 @@ app.MapPost("/api/agent/invoke", async (
         metadata = new
         {
             pattern = "01-HostedAgentService",
-            flow = "Frontend SSO → JWT validation → Copilot Studio (Direct-to-Engine) → OBO → Enterprise API"
+            flow = "Frontend SSO → JWT validation → Copilot Studio (conversations API) → OBO → Enterprise API"
         }
     });
 })
