@@ -7,7 +7,9 @@
 <h1>Agent Chat</h1>
 <p>Welcome, <strong>@Model.UserName</strong></p>
 
-<div id="chat-container" style="max-width: 600px;">
+<div id="chat-container" style="max-width: 600px;"
+     data-agent-url="@Model.AgentServiceBaseUrl"
+     data-token="@Model.AccessToken">
     <div id="response-area"
          style="border: 1px solid #ccc; border-radius: 4px; padding: 12px;
                 min-height: 120px; margin-bottom: 12px; white-space: pre-wrap;
@@ -22,47 +24,52 @@
     </form>
 </div>
 
-@section Scripts {
 <script>
-    const agentServiceUrl = '@Model.AgentServiceBaseUrl';
-    const accessToken = '@Model.AccessToken';
-    const form = document.getElementById('chat-form');
-    const input = document.getElementById('prompt-input');
-    const responseArea = document.getElementById('response-area');
-    const sendBtn = document.getElementById('send-btn');
+    document.addEventListener('DOMContentLoaded', function() {
+        var container = document.getElementById('chat-container');
+        var agentServiceUrl = container.getAttribute('data-agent-url');
+        var accessToken = container.getAttribute('data-token');
+        var form = document.getElementById('chat-form');
+        var input = document.getElementById('prompt-input');
+        var responseArea = document.getElementById('response-area');
+        var sendBtn = document.getElementById('send-btn');
 
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const prompt = input.value.trim();
-        if (!prompt) return;
+        responseArea.textContent = 'JS loaded. URL=' + agentServiceUrl + ' Token=' + (accessToken ? accessToken.length + ' chars' : 'EMPTY');
 
-        sendBtn.disabled = true;
-        responseArea.textContent = 'Sending...';
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var prompt = input.value.trim();
+            if (!prompt) return;
 
-        try {
-            const res = await fetch(`${agentServiceUrl}/api/agent/invoke`, {
+            sendBtn.disabled = true;
+            responseArea.textContent = 'Sending to ' + agentServiceUrl + '...';
+
+            fetch(agentServiceUrl + '/api/agent/invoke', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`
+                    'Authorization': 'Bearer ' + accessToken
                 },
-                body: JSON.stringify({ prompt })
+                body: JSON.stringify({ prompt: prompt })
+            })
+            .then(function(res) {
+                if (!res.ok) {
+                    return res.text().then(function(t) {
+                        responseArea.textContent = 'Error: ' + res.status + ' ' + res.statusText + '\n' + t;
+                    });
+                }
+                return res.json().then(function(data) {
+                    responseArea.textContent =
+                        'Agent: ' + data.agentResponse + '\n\nEnterprise API: ' + JSON.stringify(data.enterpriseData, null, 2);
+                });
+            })
+            .catch(function(err) {
+                responseArea.textContent = 'Error: ' + err.message;
+            })
+            .finally(function() {
+                sendBtn.disabled = false;
+                input.value = '';
             });
-
-            if (!res.ok) {
-                responseArea.textContent = `Error: ${res.status} ${res.statusText}`;
-                return;
-            }
-
-            const data = await res.json();
-            responseArea.textContent =
-                `Agent: ${data.agentResponse}\n\nEnterprise API: ${JSON.stringify(data.enterpriseData, null, 2)}`;
-        } catch (err) {
-            responseArea.textContent = `Error: ${err.message}`;
-        } finally {
-            sendBtn.disabled = false;
-            input.value = '';
-        }
+        });
     });
 </script>
-}

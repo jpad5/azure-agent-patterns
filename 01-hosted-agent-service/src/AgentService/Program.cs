@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
 
@@ -27,6 +28,8 @@ builder.Services.AddHttpClient("EnterpriseApi", client =>
     client.BaseAddress = new Uri(builder.Configuration["EnterpriseApi:BaseUrl"]!);
 });
 
+builder.Services.AddHttpClient("CopilotStudio");
+
 var app = builder.Build();
 
 app.UseCors();
@@ -45,19 +48,71 @@ app.MapPost("/api/agent/invoke", async (
     var userName = httpContext.User.Identity?.Name ?? "unknown user";
     logger.LogInformation("Agent invoked by {User} with prompt: {Prompt}", userName, request.Prompt);
 
-    // --- Step 2: Simulate calling Copilot Studio via M365 Agents SDK ---
-    // In a real implementation, you would use the M365 Agents SDK here:
-    //   var agentClient = new AgentsClient(connectionSettings);
-    //   var activity = MessageFactory.Text(request.Prompt);
-    //   var response = await agentClient.GetResponseAsync(activity);
-    // The SDK would route the prompt to a Copilot Studio agent and return its response.
-    var agentResponse = $"[Copilot Studio] Processed prompt: \"{request.Prompt}\" — " +
-                        "this is a simulated response. The M365 Agents SDK would orchestrate the real call.";
-    logger.LogInformation("Simulated Copilot Studio response generated");
+    // --- Step 2: Call Copilot Studio agent via Direct-to-Engine API ---
+    var conversationsUrl = configuration["CopilotStudio:TokenEndpoint"]!;
+    string agentResponse;
+    try
+    {
+        // Get an OBO token for the Power Platform API to call the Copilot Studio bot
+        var ppToken = await tokenAcquisition.GetAccessTokenForUserAsync(
+            new[] { "https://api.powerplatform.com/CopilotStudio.Copilots.Invoke" });
 
-    // --- Step 3: Simulate a tool invocation that requires Enterprise API data ---
-    // The agent determines it needs enterprise data to fulfill the request.
-    // Perform On-Behalf-Of (OBO) token exchange to call the Enterprise API as the user.
+        var csClient = httpClientFactory.CreateClient("CopilotStudio");
+        csClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", ppToken);
+
+        // 2a. Start a conversation
+        var startResp = await csClient.PostAsJsonAsync(conversationsUrl, new { });
+        var startBody = await startResp.Content.ReadAsStringAsync();
+        logger.LogInformation("Start conversation response ({StatusCode}): {Body}",
+            (int)startResp.StatusCode, startBody);
+        startResp.EnsureSuccessStatusCode();
+
+        var convJson = JsonDocument.Parse(startBody).RootElement;
+        var conversationId = convJson.GetProperty("conversationId").GetString()!;
+        logger.LogInformation("Copilot Studio conversation started: {ConversationId}", conversationId);
+
+        // 2b. Check if the start-conversation response already contains a bot message (greeting or error)
+        var greetingResponse = ExtractBotResponse(startBody, logger);
+        if (greetingResponse != "(no bot reply found)")
+        {
+            logger.LogInformation("Bot greeting/message received from start conversation: {Greeting}", greetingResponse);
+            agentResponse = greetingResponse;
+        }
+        else
+        {
+            // 2c. Send user message — Direct-to-Engine API: POST to /conversations/{id}
+            var uriBuilder = new UriBuilder(conversationsUrl);
+            uriBuilder.Path = uriBuilder.Path + "/" + conversationId;
+            var turnUrl = uriBuilder.Uri.ToString();
+
+            var turnPayload = new
+            {
+                activity = new
+                {
+                    type = "message",
+                    text = request.Prompt
+                }
+            };
+            var sendResp = await csClient.PostAsJsonAsync(turnUrl, turnPayload);
+            var sendBody = await sendResp.Content.ReadAsStringAsync();
+            logger.LogInformation("Execute turn response ({StatusCode}): {Body}",
+                (int)sendResp.StatusCode, sendBody);
+            sendResp.EnsureSuccessStatusCode();
+
+            // 2d. Extract the bot's response from the reply
+            agentResponse = ExtractBotResponse(sendBody, logger);
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Copilot Studio call failed");
+        return Results.Problem(detail: $"Copilot Studio call failed: {ex.Message}", statusCode: 502);
+    }
+
+    logger.LogInformation("Copilot Studio response: {Response}", agentResponse);
+
+    // --- Step 3: OBO token exchange to call the Enterprise API as the user ---
     var enterpriseApiScope = configuration["EnterpriseApi:Scope"]!;
     string oboToken;
     try
@@ -99,12 +154,52 @@ app.MapPost("/api/agent/invoke", async (
         metadata = new
         {
             pattern = "01-HostedAgentService",
-            flow = "Frontend SSO → JWT validation → Copilot Studio (simulated) → OBO → Enterprise API"
+            flow = "Frontend SSO → JWT validation → Copilot Studio (Direct-to-Engine) → OBO → Enterprise API"
         }
     });
 })
 .RequireAuthorization();
 
 app.Run();
+
+// ---------------------------------------------------------------------------
+// Extract the bot's text response from the Copilot Studio activities reply.
+// ---------------------------------------------------------------------------
+static string ExtractBotResponse(string responseBody, ILogger logger)
+{
+    try
+    {
+        using var doc = JsonDocument.Parse(responseBody);
+        var root = doc.RootElement;
+
+        // The response may contain an "activities" array with bot messages
+        if (root.TryGetProperty("activities", out var activities))
+        {
+            foreach (var act in activities.EnumerateArray())
+            {
+                var type = act.TryGetProperty("type", out var tp) ? tp.GetString() : null;
+                if (type == "message" &&
+                    act.TryGetProperty("from", out var from) &&
+                    from.TryGetProperty("role", out var role) &&
+                    role.GetString() == "bot")
+                {
+                    if (act.TryGetProperty("text", out var text))
+                        return text.GetString() ?? "(empty response)";
+                }
+            }
+        }
+
+        // Single activity response
+        if (root.TryGetProperty("text", out var directText))
+            return directText.GetString() ?? "(empty response)";
+
+        return "(no bot reply found)";
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Failed to parse bot response");
+        return responseBody;
+    }
+}
 
 public record AgentRequest(string Prompt);

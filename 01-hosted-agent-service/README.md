@@ -7,16 +7,16 @@
 This pattern demonstrates an **Azure-hosted agent service** where a frontend web
 application authenticates the user via Entra ID SSO, then delegates prompt
 processing to a backend Agent Service. The Agent Service validates the user's JWT,
-orchestrates a call to Copilot Studio (simulated via the M365 Agents SDK), and
-performs an **On-Behalf-Of (OBO)** token exchange to call a shared Enterprise API
-as the signed-in user.
+orchestrates a call to a **real Microsoft Copilot Studio agent** via the
+**Direct-to-Engine API** (authenticated), and performs an **On-Behalf-Of (OBO)**
+token exchange to call a shared Enterprise API as the signed-in user.
 
 ## Components
 
 | Component | Port | Description |
 |---|---|---|
 | **FrontendApp** | `5010` | Razor Pages app with MSAL / OpenID Connect SSO |
-| **AgentService** | `5020` | ASP.NET Core API — JWT validation, Copilot Studio orchestration (simulated), OBO |
+| **AgentService** | `5020` | ASP.NET Core API — JWT validation, Copilot Studio Direct-to-Engine API, OBO |
 | **Enterprise API** | `5050` | Shared downstream API (see `shared/enterprise-api`) |
 
 ## Auth Flow
@@ -25,7 +25,12 @@ as the signed-in user.
 User → FrontendApp (OIDC sign-in) → acquires token for AgentService scope
      → POST /api/agent/invoke (Bearer token)
      → AgentService validates JWT
-     → (simulated) Copilot Studio call via M365 Agents SDK
+     → OBO exchange: user token → Power Platform API token (CopilotStudio.Copilots.Invoke)
+     → Direct-to-Engine API:
+         1. POST /conversations (empty body) → start conversation, get conversationId
+         2. Check for bot greeting in start response activities
+         3. POST /conversations/{id} with { activity: { type, text } } → execute turn
+         4. Extract bot reply from response activities array
      → OBO exchange: user token → Enterprise API token
      → GET /api/me on Enterprise API
      → combined response returned to frontend
@@ -37,9 +42,12 @@ User → FrontendApp (OIDC sign-in) → acquires token for AgentService scope
 2. **Three Entra ID app registrations:**
    - **Frontend App** — redirect URI `http://localhost:5010/signin-oidc`
    - **Agent Service** — expose an API scope `access_as_user`; grant the Frontend
-     App permission to call it; add a client secret
+     App permission to call it; add a client secret; add delegated permission for
+     Power Platform API (`CopilotStudio.Copilots.Invoke`)
    - **Enterprise API** — expose an API scope `access_as_user`; grant the Agent
      Service permission to call it via OBO
+3. **A published Copilot Studio agent** with authenticated access enabled
+   (Direct-to-Engine API). You'll need the agent's conversations endpoint URL.
 
 ## App Registration Setup (Brief)
 
@@ -47,22 +55,67 @@ User → FrontendApp (OIDC sign-in) → acquires token for AgentService scope
 2. Register **Agent Service** → expose scope `api://<AGENT_SERVICE_CLIENT_ID>/access_as_user`;
    add API permission for Enterprise API scope; create a client secret.
 3. Register **Frontend App** → add API permission for Agent Service scope;
-   set redirect URI to `http://localhost:5010/signin-oidc`.
-4. Update `appsettings.json` in each project with the corresponding client IDs,
-   tenant ID, and secrets.
+   set redirect URI to `http://localhost:5010/signin-oidc`; create a client secret.
+4. Add **Power Platform API** delegated permission (`CopilotStudio.Copilots.Invoke`)
+   to the Agent Service app registration; grant admin consent.
+5. Update `appsettings.json` in each project with the corresponding client IDs,
+   tenant ID, secrets, and Copilot Studio endpoint URL.
+
+> **Important — Exposing Scopes on Windows PowerShell:**
+> The `az ad app update --set api.oauth2PermissionScopes=...` command can silently
+> fail due to PowerShell JSON escaping issues. Use the Microsoft Graph REST API
+> (`az rest --method PATCH`) instead. See [`runSamples.md`](../../runSamples.md)
+> for the full scripted setup with the correct commands.
+
+### Scripted Setup (PowerShell)
+
+```powershell
+# 1. Register all three apps
+$eapi = az ad app create --display-name "EnterpriseAPI" --sign-in-audience AzureADMyOrg -o json | ConvertFrom-Json
+$agent = az ad app create --display-name "AgentService" --sign-in-audience AzureADMyOrg -o json | ConvertFrom-Json
+$frontend = az ad app create --display-name "FrontendApp" --sign-in-audience AzureADMyOrg `
+  --web-redirect-uris "http://localhost:5010/signin-oidc" -o json | ConvertFrom-Json
+
+# 2. Set identifier URIs
+az ad app update --id $eapi.appId --identifier-uris "api://$($eapi.appId)"
+az ad app update --id $agent.appId --identifier-uris "api://$($agent.appId)"
+
+# 3. Expose access_as_user scopes via Graph API (see runSamples.md for full JSON body)
+#    Use: az rest --method PATCH --url "https://graph.microsoft.com/v1.0/applications/<objectId>" ...
+
+# 4. Add API permissions
+$eapiScopeId = az ad app show --id $eapi.appId --query "api.oauth2PermissionScopes[0].id" -o tsv
+$agentScopeId = az ad app show --id $agent.appId --query "api.oauth2PermissionScopes[0].id" -o tsv
+az ad app permission add --id $agent.appId --api $eapi.appId --api-permissions "$eapiScopeId=Scope"
+az ad app permission add --id $frontend.appId --api $agent.appId --api-permissions "$agentScopeId=Scope"
+
+# 5. Create client secrets
+$agentSecret = (az ad app credential reset --id $agent.appId --display-name dev-secret --years 1 -o json | ConvertFrom-Json).password
+$frontendSecret = (az ad app credential reset --id $frontend.appId --display-name dev-secret --years 1 -o json | ConvertFrom-Json).password
+
+# 6. Create service principals & grant admin consent
+az ad sp create --id $eapi.appId; az ad sp create --id $agent.appId; az ad sp create --id $frontend.appId
+Start-Sleep -Seconds 5
+az ad app permission admin-consent --id $agent.appId
+az ad app permission admin-consent --id $frontend.appId
+```
 
 ## How to Run
 
+> **Note:** The FrontendApp requires a `ClientSecret` in its `appsettings.json`
+> under the `AzureAd` section. This is needed because it's a confidential client
+> that acquires tokens to call the Agent Service API.
+
 ```bash
-# 1. Start the Enterprise API (shared)
+# 1. Start the Enterprise API (shared) — from the repo root
 cd shared/enterprise-api
 dotnet run
 
-# 2. Start the Agent Service
+# 2. Start the Agent Service — in a new terminal
 cd 01-hosted-agent-service/src/AgentService
 dotnet run
 
-# 3. Start the Frontend App
+# 3. Start the Frontend App — in a new terminal
 cd 01-hosted-agent-service/src/FrontendApp
 dotnet run
 
@@ -70,12 +123,38 @@ dotnet run
 # Navigate to http://localhost:5010
 ```
 
+## Direct-to-Engine API Details
+
+The Agent Service communicates with Copilot Studio using the
+[Direct-to-Engine API](https://learn.microsoft.com/microsoft-copilot-studio/configure-bot-direct-to-engine-overview)
+(authenticated mode).
+
+1. **Start conversation** — `POST` to the conversations URL with an empty JSON body (`{}`).
+   Returns a `conversationId` and optionally an `activities` array with a bot greeting.
+2. **Execute turn** — `POST` to `/conversations/{conversationId}` with the user message
+   wrapped in an `activity` property:
+   ```json
+   {
+     "activity": {
+       "type": "message",
+       "text": "<user prompt>"
+     }
+   }
+   ```
+   Returns an `activities` array containing the bot's response messages.
+3. **Extract reply** — iterate the `activities` array looking for `type: "message"` with
+   `from.role: "bot"` and read the `text` property.
+
+> **Note:** The payload must use the `activity` wrapper object. Sending a raw
+> Bot Framework Activity (without the wrapper) results in a 400 Bad Request.
+
 ## What This Proves
 
 - **Frontend SSO** — user signs in via Entra ID; token acquired for Agent Service.
 - **JWT validation** — Agent Service validates the token using Microsoft.Identity.Web.
-- **Copilot Studio orchestration (simulated)** — shows where M365 Agents SDK calls
-  would plug in.
-- **OBO token exchange** — Agent Service exchanges the user token for a downstream
-  token scoped to the Enterprise API.
+- **Copilot Studio integration** — real call to a Copilot Studio agent via the
+  Direct-to-Engine API using an OBO token for the Power Platform API
+  (`CopilotStudio.Copilots.Invoke` scope).
+- **OBO token exchange** — Agent Service exchanges the user token for downstream
+  tokens scoped to both the Power Platform API and the Enterprise API.
 - **Enterprise API call** — the user's identity flows through the entire chain.

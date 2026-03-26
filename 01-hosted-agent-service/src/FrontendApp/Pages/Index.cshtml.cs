@@ -3,6 +3,7 @@ using Microsoft.Identity.Web;
 
 namespace FrontendApp.Pages;
 
+[AuthorizeForScopes(ScopeKeySection = "AgentService:Scope")]
 public class IndexModel : PageModel
 {
     private readonly ITokenAcquisition _tokenAcquisition;
