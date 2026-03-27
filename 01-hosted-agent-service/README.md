@@ -2,6 +2,27 @@
 
 ![Architecture](../docs/images/01-HostedAgentService.png)
 
+## When to Use This Pattern
+
+Use this pattern when you need to:
+
+- **Expose a Copilot Studio agent through a custom web UI** rather than embedding
+  the default Copilot Studio chat widget or publishing to Teams/SharePoint.
+- **Add a backend orchestration layer** between the user and the AI agent — for
+  example, to enrich prompts, enforce business rules, call additional APIs, or
+  aggregate responses before returning them to the frontend.
+- **Flow the signed-in user's identity end-to-end** from a frontend app through
+  an intermediary service to downstream APIs using On-Behalf-Of (OBO) token
+  exchanges, ensuring every hop is authenticated as the original user.
+- **Keep secrets server-side** — the frontend never holds Power Platform API
+  tokens or Enterprise API tokens; only the backend Agent Service performs OBO
+  exchanges and calls downstream services.
+
+> **Not the right fit?** If you only need the default chat experience inside
+> Teams or a website widget, consider the Bot Service patterns
+> ([Pattern 2](../02-botservice-teams/) / [Pattern 3](../03-botservice-directline/))
+> or the Agents SDK client ([Pattern 4](../04-agents-sdk-direct-to-engine/)).
+
 ## Overview
 
 This pattern demonstrates an **Azure-hosted agent service** where a frontend web
