@@ -2,6 +2,15 @@
 
 ![Architecture](../docs/images/01-HostedAgentService.png)
 
+## Demo
+
+https://github.com/user-attachments/assets/01-HostedAgentService-video.mp4
+
+> **▶ [Watch the demo video](../docs/videos/01-HostedAgentService-video.mp4)** —
+> walkthrough of the end-to-end Hosted Agent Service pattern: user sign-in via
+> Entra ID SSO, prompt submission through the frontend, agent orchestration, and
+> Enterprise API call with OBO token exchange.
+
 ## When to Use This Pattern
 
 Use this pattern when you need to:

@@ -46,7 +46,9 @@ app.MapPost("/api/agent/invoke", async (
 {
     // --- Step 1: Validate the incoming JWT (handled automatically by [Authorize]) ---
     var userName = httpContext.User.Identity?.Name ?? "unknown user";
+    var claims = httpContext.User.Claims.Select(c => $"{c.Type}={c.Value}").ToList();
     logger.LogInformation("Agent invoked by {User} with prompt: {Prompt}", userName, request.Prompt);
+    logger.LogDebug("Authenticated user claims: {Claims}", string.Join("; ", claims));
 
     // --- Step 2: Call Copilot Studio agent via conversations API ---
     var conversationsUrl = configuration["CopilotStudio:TokenEndpoint"]!;
@@ -54,18 +56,23 @@ app.MapPost("/api/agent/invoke", async (
     try
     {
         // Get an OBO token for the Power Platform API to call the Copilot Studio bot
+        logger.LogDebug("Requesting OBO token for Power Platform API scope: CopilotStudio.Copilots.Invoke");
         var ppToken = await tokenAcquisition.GetAccessTokenForUserAsync(
             new[] { "https://api.powerplatform.com/CopilotStudio.Copilots.Invoke" });
+        logger.LogDebug("Power Platform OBO token acquired (length={TokenLength})", ppToken.Length);
 
         var csClient = httpClientFactory.CreateClient("CopilotStudio");
         csClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", ppToken);
 
         // 2a. Start a conversation
+        logger.LogDebug("POST conversations URL: {Url}", conversationsUrl);
         var startResp = await csClient.PostAsJsonAsync(conversationsUrl, new { });
         var startBody = await startResp.Content.ReadAsStringAsync();
         logger.LogInformation("Start conversation response ({StatusCode}): {Body}",
             (int)startResp.StatusCode, startBody);
+        logger.LogDebug("Start conversation response headers: {Headers}",
+            string.Join("; ", startResp.Headers.Select(h => $"{h.Key}={string.Join(",", h.Value)}")));
         startResp.EnsureSuccessStatusCode();
 
         var convJson = JsonDocument.Parse(startBody).RootElement;
@@ -94,10 +101,13 @@ app.MapPost("/api/agent/invoke", async (
                     text = request.Prompt
                 }
             };
+            logger.LogDebug("POST turn URL: {TurnUrl} with payload type=message", turnUrl);
             var sendResp = await csClient.PostAsJsonAsync(turnUrl, turnPayload);
             var sendBody = await sendResp.Content.ReadAsStringAsync();
             logger.LogInformation("Execute turn response ({StatusCode}): {Body}",
                 (int)sendResp.StatusCode, sendBody);
+            logger.LogDebug("Execute turn response headers: {Headers}",
+                string.Join("; ", sendResp.Headers.Select(h => $"{h.Key}={string.Join(",", h.Value)}")));
             sendResp.EnsureSuccessStatusCode();
 
             // 2d. Extract the bot's response from the reply
@@ -114,11 +124,13 @@ app.MapPost("/api/agent/invoke", async (
 
     // --- Step 3: OBO token exchange to call the Enterprise API as the user ---
     var enterpriseApiScope = configuration["EnterpriseApi:Scope"]!;
+    logger.LogDebug("Requesting OBO token for Enterprise API scope: {Scope}", enterpriseApiScope);
     string oboToken;
     try
     {
         oboToken = await tokenAcquisition.GetAccessTokenForUserAsync(
             new[] { enterpriseApiScope });
+        logger.LogDebug("Enterprise API OBO token acquired (length={TokenLength})", oboToken.Length);
     }
     catch (Exception ex)
     {
@@ -133,12 +145,16 @@ app.MapPost("/api/agent/invoke", async (
     client.DefaultRequestHeaders.Authorization =
         new AuthenticationHeaderValue("Bearer", oboToken);
 
+    var enterpriseBaseUrl = configuration["EnterpriseApi:BaseUrl"];
+    logger.LogDebug("Calling Enterprise API at {BaseUrl}/api/me", enterpriseBaseUrl);
     object? enterpriseData;
     try
     {
         var apiResponse = await client.GetAsync("/api/me");
+        logger.LogDebug("Enterprise API response: {StatusCode}", (int)apiResponse.StatusCode);
         apiResponse.EnsureSuccessStatusCode();
         enterpriseData = await apiResponse.Content.ReadFromJsonAsync<object>();
+        logger.LogDebug("Enterprise API data received: {Data}", enterpriseData);
     }
     catch (Exception ex)
     {
