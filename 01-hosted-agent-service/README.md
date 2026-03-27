@@ -86,7 +86,7 @@ User → FrontendApp (OIDC sign-in) → acquires token for AgentService scope
 > **Important — Exposing Scopes on Windows PowerShell:**
 > The `az ad app update --set api.oauth2PermissionScopes=...` command can silently
 > fail due to PowerShell JSON escaping issues. Use the Microsoft Graph REST API
-> (`az rest --method PATCH`) instead. See [`runSamples.md`](../../runSamples.md)
+> (`az rest --method PATCH`) instead. See [`runPattern-1.md`](runPattern-1.md)
 > for the full scripted setup with the correct commands.
 
 ### Scripted Setup (PowerShell)
@@ -102,7 +102,7 @@ $frontend = az ad app create --display-name "FrontendApp" --sign-in-audience Azu
 az ad app update --id $eapi.appId --identifier-uris "api://$($eapi.appId)"
 az ad app update --id $agent.appId --identifier-uris "api://$($agent.appId)"
 
-# 3. Expose access_as_user scopes via Graph API (see runSamples.md for full JSON body)
+# 3. Expose access_as_user scopes via Graph API (see runPattern-1.md for full JSON body)
 #    Use: az rest --method PATCH --url "https://graph.microsoft.com/v1.0/applications/<objectId>" ...
 
 # 4. Add API permissions
