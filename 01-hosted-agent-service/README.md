@@ -37,8 +37,9 @@ Use this pattern when you need to:
 This pattern demonstrates an **Azure-hosted agent service** where a frontend web
 application authenticates the user via Entra ID SSO, then delegates prompt
 processing to a backend Agent Service. The Agent Service validates the user's JWT,
-orchestrates a call to a **real Microsoft Copilot Studio agent** via the
-**Copilot Studio conversations API** (authenticated), and performs an **On-Behalf-Of (OBO)**
+orchestrates a call to a **real Microsoft Copilot Studio agent** using the
+`CopilotClient` from the **Microsoft.Agents.CopilotStudio.Client** SDK
+(with OBO authentication), and performs an additional **On-Behalf-Of (OBO)**
 token exchange to call a shared Enterprise API as the signed-in user.
 
 ## Components
@@ -56,11 +57,9 @@ User → FrontendApp (OIDC sign-in) → acquires token for AgentService scope
      → POST /api/agent/invoke (Bearer token)
      → AgentService validates JWT
      → OBO exchange: user token → Power Platform API token (CopilotStudio.Copilots.Invoke)
-     → Copilot Studio conversations API:
-         1. POST /conversations (empty body) → start conversation, get conversationId
-         2. Check for bot greeting in start response activities
-         3. POST /conversations/{id} with { activity: { type, text } } → execute turn
-         4. Extract bot reply from response activities array
+     → CopilotClient SDK (Direct-to-Engine):
+         1. StartConversationAsync → streams greeting activities via SSE
+         2. AskQuestionAsync(prompt) → streams bot reply activities via SSE
      → OBO exchange: user token → Enterprise API token
      → GET /api/me on Enterprise API
      → combined response returned to frontend
@@ -154,41 +153,30 @@ dotnet run
 # Navigate to http://localhost:5010
 ```
 
-## Copilot Studio Conversations API Details
+## CopilotClient SDK Integration
 
-The Agent Service communicates with Copilot Studio using the
-[Copilot Studio conversations API](https://learn.microsoft.com/microsoft-copilot-studio/publication-integrate-web-or-native-app-m365-agents-sdk)
-(authenticated mode). This is the same REST endpoint that the
-[Microsoft 365 Agents SDK](https://github.com/microsoft/Agents) Copilot Studio
-client wraps internally. This sample calls the REST endpoint directly to
-demonstrate the underlying protocol.
+The Agent Service communicates with Copilot Studio using `CopilotClient` from the
+[`Microsoft.Agents.CopilotStudio.Client`](https://www.nuget.org/packages/Microsoft.Agents.CopilotStudio.Client)
+NuGet package. The SDK handles:
 
-1. **Start conversation** — `POST` to the conversations URL with an empty JSON body (`{}`).
-   Returns a `conversationId` and optionally an `activities` array with a bot greeting.
-2. **Execute turn** — `POST` to `/conversations/{conversationId}` with the user message
-   wrapped in an `activity` property:
-   ```json
-   {
-     "activity": {
-       "type": "message",
-       "text": "<user prompt>"
-     }
-   }
-   ```
-   Returns an `activities` array containing the bot's response messages.
-3. **Extract reply** — iterate the `activities` array looking for `type: "message"` with
-   `from.role: "bot"` and read the `text` property.
+- **SSE streaming** — responses arrive as `IAsyncEnumerable<Activity>`, properly
+  handling Server-Sent Events from the Direct-to-Engine endpoint.
+- **Conversation lifecycle** — `StartConversationAsync()` and `AskQuestionAsync()`
+  manage conversation state, retries, and error handling.
+- **Token management** — a token provider function is called on demand; this sample
+  uses `ITokenAcquisition.GetAccessTokenForUserAsync()` to perform OBO exchange
+  for the `CopilotStudio.Copilots.Invoke` scope.
 
-> **Note:** The payload must use the `activity` wrapper object. Sending a raw
-> Bot Framework Activity (without the wrapper) results in a 400 Bad Request.
+Configuration requires only `EnvironmentId` and `SchemaName` from Copilot Studio
+(Settings → Advanced → Metadata).
 
 ## What This Proves
 
 - **Frontend SSO** — user signs in via Entra ID; token acquired for Agent Service.
 - **JWT validation** — Agent Service validates the token using Microsoft.Identity.Web.
 - **Copilot Studio integration** — real call to a Copilot Studio agent via the
-  Copilot Studio conversations API using an OBO token for the Power Platform API
-  (`CopilotStudio.Copilots.Invoke` scope).
+  `CopilotClient` SDK with SSE streaming, using an OBO token for the Power
+  Platform API (`CopilotStudio.Copilots.Invoke` scope).
 - **OBO token exchange** — Agent Service exchanges the user token for downstream
   tokens scoped to both the Power Platform API and the Enterprise API.
 - **Enterprise API call** — the user's identity flows through the entire chain.

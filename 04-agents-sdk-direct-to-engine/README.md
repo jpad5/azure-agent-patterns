@@ -16,8 +16,9 @@ Enterprise API
 ```
 
 **Key insight:** Copilot Studio is the *orchestrator*, not an intermediary. The
-CustomApp talks directly to the Copilot Studio engine using the M365 Agents SDK
-(`CopilotStudioClient`), and the agent decides when to call external tools
+CustomApp talks directly to the Copilot Studio engine using `CopilotClient` from
+the `Microsoft.Agents.CopilotStudio.Client` NuGet package. The SDK handles SSE
+streaming and conversation lifecycle. The agent decides when to invoke tools
 (custom actions) like the ActionEndpoint.
 
 ## Third-Party IDP Support
@@ -84,8 +85,9 @@ Agent: [response from Copilot Studio including enterprise API data]
 
 1. **MSAL federated sign-in** — Users from federated IDPs (Okta, Ping, Auth0)
    authenticate seamlessly via Entra ID federation.
-2. **Direct-to-Engine via Agents SDK** — The custom app connects directly to
-   the Copilot Studio engine, bypassing any web channel.
+2. **Direct-to-Engine via CopilotClient** — The custom app connects directly to
+   the Copilot Studio engine using `CopilotClient` from the Agents SDK, with
+   full SSE streaming support and proper conversation lifecycle management.
 3. **Copilot Studio orchestration** — The agent decides when to invoke tools
    and custom actions as part of the conversation.
 4. **Tool invocation → OBO → Enterprise API** — The ActionEndpoint performs
@@ -107,10 +109,13 @@ Agent: [response from Copilot Studio including enterprise API data]
         └── appsettings.json
 ```
 
-## Note on SDK Availability
+## SDK Details
 
-The `Microsoft.Agents.CopilotStudio.Client` NuGet package may be in preview.
-A `CopilotStudioClientSimulator` class is provided in `CustomApp/Program.cs`
-for testing without the SDK. The simulator makes HTTP calls to the Direct Line
-endpoint with the same authentication flow. Replace it with the real SDK client
-when the package becomes generally available.
+This sample uses `CopilotClient` from the
+[`Microsoft.Agents.CopilotStudio.Client`](https://www.nuget.org/packages/Microsoft.Agents.CopilotStudio.Client)
+NuGet package (GA). The SDK handles:
+- **SSE streaming** — responses are delivered as `IAsyncEnumerable<Activity>`.
+- **Conversation lifecycle** — `StartConversationAsync` and `AskQuestionAsync`
+  manage conversation state automatically.
+- **Token management** — a token provider function is called on demand to
+  acquire/refresh tokens via MSAL.

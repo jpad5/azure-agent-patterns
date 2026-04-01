@@ -1,0 +1,49 @@
+sequenceDiagram
+    actor User
+    participant FE as Frontend App<br/>(Teams / Portal)
+    participant Entra as Microsoft Entra ID
+    participant AS as Hosted<br/>Agent Service
+    participant SDK as CopilotClient<br/>(Agents SDK)
+    participant CS as Microsoft<br/>Copilot Studio
+    participant API as Internal<br/>Enterprise API
+
+    rect rgb(220, 225, 245)
+        Note over User, Entra: Phase 1 — Authentication
+        User ->>+ FE: ❶ Sign In
+        FE ->>+ Entra: ❷ Authenticate User (OIDC)
+        Note right of Entra: Conditional Access<br/>Policies Enforced
+        Entra -->>- FE: ❸ User Access Token (JWT)
+    end
+
+    rect rgb(215, 240, 220)
+        Note over FE, AS: Phase 2 — Request Submission
+        FE ->>+ AS: ❹ Prompt + User Token (Bearer)
+        Note right of AS: Validate JWT<br/>(signature, claims, scopes)
+    end
+
+    rect rgb(255, 250, 210)
+        Note over AS, CS: Phase 3 — Agent Orchestration (via CopilotClient SDK)
+        AS ->>+ Entra: ❺ OBO Token Exchange<br/>(CopilotStudio.Copilots.Invoke scope)
+        Entra -->>- AS: ❻ Power Platform Access Token
+        AS ->>+ SDK: ❼ Create CopilotClient<br/>(token provider function)
+        SDK ->>+ CS: ❽ StartConversationAsync<br/>(SSE streaming)
+        CS -->> SDK: ❾ Bot Greeting (streamed activities)
+        SDK ->> CS: ❿ AskQuestionAsync(prompt)<br/>(SSE streaming)
+        CS -->>- SDK: ⓫ Bot Reply (streamed activities)
+        SDK -->>- AS: ⓬ IAsyncEnumerable[Activity]
+        Note right of CS: Agent decides if<br/>tool invocation needed
+    end
+
+    rect rgb(235, 220, 245)
+        Note over AS, API: Phase 4 — Delegated API Call (OBO Flow)
+        AS ->>+ Entra: ⓭ OBO Token Exchange<br/>(Enterprise API scope)
+        Entra -->>- AS: ⓮ Delegated Access Token
+        AS ->>+ API: ⓯ Call API using OBO Token<br/>(GET /api/me)
+        API -->>- AS: ⓰ API Response (user-specific data)
+    end
+
+    rect rgb(250, 225, 220)
+        Note over User, API: Phase 5 — Response Delivery
+        AS -->>- FE: ⓱ Combined Response<br/>(agent reply + enterprise data)
+        FE -->> User: ⓲ Display Response
+    end

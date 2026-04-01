@@ -36,6 +36,13 @@ dist/
 *.pfx
 *.pem
 
-# Pattern 1 — appsettings contain real secrets locally
-01-hosted-agent-service/**/appsettings.json
-shared/enterprise-api/appsettings.json
+# All appsettings.json files may contain secrets — never commit them
+**/appsettings.json
+
+# Log files
+**/Logs/
+*.log
+*.log.err
+
+# Scratch / copy folders
+99-*/

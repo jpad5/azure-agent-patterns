@@ -8,16 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!--
-      Microsoft.Agents.CopilotStudio.Client is the M365 Agents SDK package for direct-to-engine
-      connectivity to Copilot Studio. The package may still be in preview; update the version
-      to the latest available on NuGet. The npm equivalent is @microsoft/agents-copilotstudio-client.
-    -->
-    <PackageReference Include="Microsoft.Agents.CopilotStudio.Client" Version="1.0.0-preview.*" />
+    <PackageReference Include="Microsoft.Agents.CopilotStudio.Client" Version="1.4.*" />
     <PackageReference Include="Microsoft.Identity.Client" Version="4.*" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.*" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.*" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.*" />
   </ItemGroup>
 
   <ItemGroup>
