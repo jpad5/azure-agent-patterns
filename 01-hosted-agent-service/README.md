@@ -1,4 +1,4 @@
-# Pattern 1 — Azure Hosted Agent Service
+# Pattern 1 — Hosted Agent Service
 
 ![Architecture](../docs/images/01-HostedAgentService.png)
 
